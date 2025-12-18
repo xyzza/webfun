@@ -1,0 +1,28 @@
+/* Additional game styles */
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+#ui {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+#ui div {
+  margin-bottom: 10px;
+}
+
+/* Loading state */
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  color: #e94560;
+  font-size: 24px;
+}
