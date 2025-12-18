@@ -8,7 +8,7 @@ export interface GameObject {
   velocity: Vector2D;
   width: number;
   height: number;
-  update(deltaTime: number): void;
+  update(deltaTime: number, ...args: any[]): void;
   render(ctx: CanvasRenderingContext2D): void;
 }
 
