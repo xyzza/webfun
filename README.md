@@ -57,6 +57,36 @@ Preview the production build locally:
 npm run preview
 ```
 
+## Deployment
+
+This project is configured for automatic deployment to GitHub Pages using GitHub Actions.
+
+### GitHub Pages Setup
+
+1. Go to your repository settings on GitHub
+2. Navigate to **Settings** → **Pages**
+3. Under **Source**, select **GitHub Actions**
+4. Push to `main` or `master` branch to trigger deployment
+
+The workflow will automatically:
+- Build the project
+- Deploy to GitHub Pages
+- Make the game available at `https://<username>.github.io/Webfun/`
+
+### Manual Deployment
+
+You can also trigger deployment manually:
+1. Go to **Actions** tab in your GitHub repository
+2. Select **Deploy to GitHub Pages** workflow
+3. Click **Run workflow**
+
+### Custom Domain
+
+To use a custom domain:
+1. Update `base` in `vite.config.ts` to `'/'`
+2. Add your custom domain in repository settings
+3. Add a `CNAME` file in the `public/` directory with your domain
+
 ## Project Structure
 
 ```
