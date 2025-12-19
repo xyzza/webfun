@@ -4,7 +4,7 @@ import path from 'path';
 export default defineConfig({
   // Set base path for GitHub Pages deployment
   // Use '/Webfun/' for GitHub Pages, or '/' for custom domain
-  base: process.env.NODE_ENV === 'production' ? '/Webfun/' : '/',
+  base: process.env.NODE_ENV === 'production' ? '/webfun/' : '/',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
