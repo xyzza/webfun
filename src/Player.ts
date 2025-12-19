@@ -22,7 +22,7 @@ export class Player implements GameObject, Collidable {
     this.velocity = { x: 0, y: 0 };
   }
 
-  update(deltaTime: number, input: InputManager, platforms: Platform[]): void {
+  update(deltaTime: number, input: InputManager, platforms: Platform[], canvasWidth: number): void {
     // Apply gravity
     this.velocity.y += this.gravity * deltaTime;
 
@@ -63,9 +63,14 @@ export class Player implements GameObject, Collidable {
       }
     }
 
-    // Keep player within canvas bounds (horizontally)
-    if (this.position.x < 0) this.position.x = 0;
-    if (this.position.x + this.width > 800) this.position.x = 800 - this.width;
+    // Horizontal screen wrapping: teleport to opposite edge when completely off-screen
+    if (this.position.x + this.width < 0) {
+      // Player completely left of screen - wrap to right
+      this.position.x = canvasWidth;
+    } else if (this.position.x > canvasWidth) {
+      // Player completely right of screen - wrap to left
+      this.position.x = -this.width;
+    }
   }
 
   private resolveCollision(platform: Platform): void {

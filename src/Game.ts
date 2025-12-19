@@ -56,7 +56,7 @@ export class Game {
     }
 
     // Update player
-    this.player.update(deltaTime, this.inputManager, this.platforms);
+    this.player.update(deltaTime, this.inputManager, this.platforms, this.canvas.width);
 
     // Check if player fell off the screen
     if (this.player.position.y > this.canvas.height) {
