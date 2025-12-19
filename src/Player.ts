@@ -17,6 +17,12 @@ export class Player implements GameObject, Collidable {
   private isGrounded: boolean = false;
   private canJump: boolean = true;
 
+  // Progressive speed system
+  private currentSpeedMultiplier: number = 1.0;
+  private lastDirection: number = 0; // -1 (left), 0 (none), 1 (right)
+  private readonly speedIncreaseRate: number = 0.05; // 5% per second
+  private readonly maxSpeedMultiplier: number = 4.0; // Cap at 400% speed
+
   constructor(x: number, y: number) {
     this.position = { x, y };
     this.velocity = { x: 0, y: 0 };
@@ -31,14 +37,36 @@ export class Player implements GameObject, Collidable {
       this.velocity.y = this.maxFallSpeed;
     }
 
-    // Horizontal movement
-    this.velocity.x = 0;
-    if (input.isLeftPressed()) {
-      this.velocity.x = -this.moveSpeed;
+    // Horizontal movement with progressive speed increase
+    // Determine current input direction
+    let currentDirection = 0;
+    if (input.isLeftPressed() && !input.isRightPressed()) {
+      currentDirection = -1;
+    } else if (input.isRightPressed() && !input.isLeftPressed()) {
+      currentDirection = 1;
     }
-    if (input.isRightPressed()) {
-      this.velocity.x = this.moveSpeed;
+    // Note: If both keys pressed, currentDirection stays 0 (no movement)
+
+    // Speed multiplier logic
+    if (currentDirection === 0) {
+      // Not moving - reset multiplier
+      this.currentSpeedMultiplier = 1.0;
+    } else if (currentDirection !== this.lastDirection) {
+      // Direction changed - reset multiplier
+      this.currentSpeedMultiplier = 1.0;
+    } else {
+      // Moving in same direction - increase multiplier
+      this.currentSpeedMultiplier = Math.min(
+        this.currentSpeedMultiplier + (this.speedIncreaseRate * deltaTime),
+        this.maxSpeedMultiplier
+      );
     }
+
+    // Apply movement with current multiplier
+    this.velocity.x = currentDirection * this.moveSpeed * this.currentSpeedMultiplier;
+
+    // Update last direction for next frame
+    this.lastDirection = currentDirection;
 
     // Jump
     if (input.isJumpPressed() && this.isGrounded && this.canJump) {
@@ -150,5 +178,8 @@ export class Player implements GameObject, Collidable {
     this.position = { x, y };
     this.velocity = { x: 0, y: 0 };
     this.isGrounded = false;
+    // Reset speed multiplier state
+    this.currentSpeedMultiplier = 1.0;
+    this.lastDirection = 0;
   }
 }
