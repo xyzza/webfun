@@ -1,4 +1,5 @@
 # Dependencies
+CLAUDE.md
 node_modules/
 .pnpm-debug.log*
 npm-debug.log*
