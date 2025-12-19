@@ -2,6 +2,8 @@
 
 A classic arcade-style platformer game built with TypeScript and HTML5 Canvas.
 
+[![Deploy to GitHub Pages](https://github.com/xyzza/webfun/actions/workflows/deploy.yml/badge.svg)](https://github.com/xyzza/webfun/actions/workflows/deploy.yml)
+
 ## Features
 
 - Physics-based player movement with gravity and jumping
