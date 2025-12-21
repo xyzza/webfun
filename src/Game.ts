@@ -2,6 +2,8 @@ import { Player } from './Player';
 import { Platform } from './Platform';
 import { InputManager } from './InputManager';
 import type { GameState } from './types';
+import { LevelManager } from './levels/LevelManager';
+import { getStartingLevelId } from './levels/level-configs/index';
 
 export class Game {
   private canvas: HTMLCanvasElement;
@@ -9,14 +11,19 @@ export class Game {
   private player: Player;
   private platforms: Platform[] = [];
   private inputManager: InputManager;
+  private levelManager: LevelManager;
   private lastTime: number = 0;
   private animationId: number = 0;
+  private wasGrounded: boolean = false;
 
   private state: GameState = {
     score: 0,
     lives: 3,
     isGameOver: false,
     isPaused: false,
+    currentLevelId: '',
+    levelCompleted: false,
+    levelStartTime: 0,
   };
 
   constructor(canvasId: string) {
@@ -34,20 +41,32 @@ export class Game {
 
     this.inputManager = new InputManager();
     this.player = new Player(100, 100);
+    this.levelManager = new LevelManager();
 
-    this.initializePlatforms();
+    // Load starting level
+    this.loadLevel(getStartingLevelId());
   }
 
-  private initializePlatforms(): void {
-    // Ground
-    this.platforms.push(new Platform(0, 560, 800, 40, '#0f3460'));
+  private loadLevel(levelId: string): void {
+    const config = this.levelManager.loadLevel(levelId);
 
-    // Platforms
-    this.platforms.push(new Platform(150, 450, 150, 20, '#0f3460'));
-    this.platforms.push(new Platform(400, 350, 150, 20, '#0f3460'));
-    this.platforms.push(new Platform(200, 250, 150, 20, '#0f3460'));
-    this.platforms.push(new Platform(500, 200, 120, 20, '#0f3460'));
-    this.platforms.push(new Platform(650, 450, 100, 20, '#0f3460'));
+    // Update state
+    this.state.currentLevelId = levelId;
+    this.state.levelCompleted = false;
+    this.state.levelStartTime = Date.now();
+
+    // Create platforms
+    this.platforms = this.levelManager.createPlatforms(config);
+
+    // Configure player
+    const playerConfig = this.levelManager.getPlayerConfig();
+    this.player.configure(playerConfig.physics, playerConfig.features);
+
+    // Reset player position
+    this.player.reset(config.spawnPosition.x, config.spawnPosition.y);
+
+    // Update UI
+    this.updateUI();
   }
 
   private update(deltaTime: number): void {
@@ -56,15 +75,45 @@ export class Game {
     }
 
     // Update player
-    this.player.update(deltaTime, this.inputManager, this.platforms, this.canvas.width);
+    this.player.update(deltaTime, this.inputManager, this.platforms, this.canvas.width, this.canvas.height);
 
-    // Check if player fell off the screen
-    if (this.player.position.y > this.canvas.height) {
+    // Check if player fell off the screen (only if vertical wrapping disabled)
+    const config = this.levelManager.getCurrentConfig();
+    const hasVerticalWrapping = config?.features.verticalScreenWrapping ?? false;
+
+    if (!hasVerticalWrapping && this.player.position.y > this.canvas.height) {
       this.loseLife();
     }
 
     // Update score (simple time-based scoring)
     this.state.score += Math.floor(deltaTime * 10);
+
+    // Check for landing on non-goal platform
+    const isGrounded = this.player.getIsGrounded();
+    if (config?.features.resetOnNonGoalPlatform && !this.wasGrounded && isGrounded) {
+      // Player just landed - check which platform
+      const landedPlatformIndex = this.findLandedPlatform();
+      const goalPlatformIndex = config.winCondition.type === 'reach_platform'
+        ? config.winCondition.platformIndex ?? -1
+        : -1;
+
+      if (landedPlatformIndex !== -1 && landedPlatformIndex !== goalPlatformIndex) {
+        // Landed on wrong platform - reset to first platform
+        const firstPlatform = this.platforms[0];
+        if (firstPlatform) {
+          const bounds = firstPlatform.getBounds();
+          this.player.reset(bounds.x + bounds.width / 2 - this.player.width / 2, bounds.y - this.player.height - 5);
+        }
+      }
+    }
+    this.wasGrounded = isGrounded;
+
+    // Check win condition
+    if (!this.state.levelCompleted &&
+        this.levelManager.checkWinCondition(this.state, this.platforms, this.player.position)) {
+      this.onLevelComplete();
+    }
+
     this.updateUI();
   }
 
@@ -85,8 +134,13 @@ export class Game {
       this.renderGameOver();
     }
 
-    // Render pause screen
-    if (this.state.isPaused) {
+    // Render level complete screen
+    if (this.state.levelCompleted && !this.state.isGameOver) {
+      this.renderLevelComplete();
+    }
+
+    // Render pause screen (but not if level is complete)
+    if (this.state.isPaused && !this.state.levelCompleted) {
       this.renderPaused();
     }
   }
@@ -134,22 +188,99 @@ export class Game {
     );
   }
 
+  private renderLevelComplete(): void {
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    this.ctx.fillStyle = '#4CAF50';
+    this.ctx.font = '48px Arial';
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText('LEVEL COMPLETE!', this.canvas.width / 2, this.canvas.height / 2 - 40);
+
+    this.ctx.fillStyle = '#ffffff';
+    this.ctx.font = '24px Arial';
+    this.ctx.fillText(
+      `Score: ${this.state.score}`,
+      this.canvas.width / 2,
+      this.canvas.height / 2 + 10
+    );
+
+    const nextLevelId = this.levelManager.getNextLevelId();
+    this.ctx.font = '18px Arial';
+    if (nextLevelId) {
+      this.ctx.fillText(
+        'Press ENTER or N for Next Level',
+        this.canvas.width / 2,
+        this.canvas.height / 2 + 50
+      );
+    } else {
+      this.ctx.fillText(
+        'All Levels Complete!',
+        this.canvas.width / 2,
+        this.canvas.height / 2 + 50
+      );
+    }
+  }
+
+  private findLandedPlatform(): number {
+    const playerBounds = this.player.getBounds();
+    const playerBottom = playerBounds.y + playerBounds.height;
+    const playerCenterX = playerBounds.x + playerBounds.width / 2;
+
+    for (let i = 0; i < this.platforms.length; i++) {
+      const platformBounds = this.platforms[i].getBounds();
+
+      // Check if player is standing on this platform
+      if (playerCenterX >= platformBounds.x &&
+          playerCenterX <= platformBounds.x + platformBounds.width &&
+          Math.abs(playerBottom - platformBounds.y) < 5) {
+        return i;
+      }
+    }
+
+    return -1;
+  }
+
   private loseLife(): void {
     this.state.lives--;
 
     if (this.state.lives <= 0) {
       this.state.isGameOver = true;
     } else {
-      // Reset player position
-      this.player.reset(100, 100);
+      // Reset player position to current level's spawn point
+      const config = this.levelManager.getCurrentConfig();
+      if (config) {
+        this.player.reset(config.spawnPosition.x, config.spawnPosition.y);
+      }
     }
 
     this.updateUI();
   }
 
+  private onLevelComplete(): void {
+    this.state.levelCompleted = true;
+    this.state.isPaused = true;
+
+    console.log('Level Complete!');
+  }
+
+  public nextLevel(): void {
+    const nextLevelId = this.levelManager.getNextLevelId();
+
+    if (nextLevelId) {
+      this.loadLevel(nextLevelId);
+      this.state.isPaused = false;
+    } else {
+      console.log('Game Complete! All levels finished.');
+      // Show game complete state
+      this.state.isGameOver = true;
+    }
+  }
+
   private updateUI(): void {
     const scoreElement = document.getElementById('score');
     const livesElement = document.getElementById('lives');
+    const levelElement = document.getElementById('level');
 
     if (scoreElement) {
       scoreElement.textContent = `Score: ${this.state.score}`;
@@ -157,6 +288,11 @@ export class Game {
 
     if (livesElement) {
       livesElement.textContent = `Lives: ${this.state.lives}`;
+    }
+
+    if (levelElement) {
+      const config = this.levelManager.getCurrentConfig();
+      levelElement.textContent = config ? `Level: ${config.name}` : '';
     }
   }
 
@@ -172,10 +308,16 @@ export class Game {
     if (this.inputManager.isPausePressed()) {
       // Simple debouncing - you might want to improve this
       setTimeout(() => {
-        if (!this.state.isGameOver) {
+        if (!this.state.isGameOver && !this.state.levelCompleted) {
           this.state.isPaused = !this.state.isPaused;
         }
       }, 200);
+    }
+
+    // Handle next level
+    if (this.state.levelCompleted && !this.state.isGameOver &&
+        (this.inputManager.isKeyPressed('Enter') || this.inputManager.isKeyPressed('n'))) {
+      this.nextLevel();
     }
 
     // Handle restart
@@ -190,14 +332,13 @@ export class Game {
   };
 
   private restart(): void {
-    this.state = {
-      score: 0,
-      lives: 3,
-      isGameOver: false,
-      isPaused: false,
-    };
-    this.player.reset(100, 100);
-    this.updateUI();
+    this.state.score = 0;
+    this.state.lives = 3;
+    this.state.isGameOver = false;
+    this.state.isPaused = false;
+
+    // Reload starting level
+    this.loadLevel(getStartingLevelId());
   }
 
   public start(): void {

@@ -1,6 +1,7 @@
 import type { GameObject, Vector2D, Collidable } from './types';
 import type { InputManager } from './InputManager';
 import type { Platform } from './Platform';
+import type { PhysicsConfig, LevelFeatures } from './levels/LevelConfig';
 
 export class Player implements GameObject, Collidable {
   position: Vector2D;
@@ -9,64 +10,153 @@ export class Player implements GameObject, Collidable {
   height: number = 40;
   color: string = '#e94560';
 
-  private readonly gravity: number = 980; // pixels per second squared
-  private readonly jumpForce: number = -450; // pixels per second
-  private readonly moveSpeed: number = 250; // pixels per second
-  private readonly maxFallSpeed: number = 600;
+  // Configurable physics parameters (defaults)
+  private gravity: number = 980;
+  private jumpForce: number = -450;
+  private moveSpeed: number = 250;
+  private maxFallSpeed: number = 600;
 
   private isGrounded: boolean = false;
   private canJump: boolean = true;
 
-  // Progressive speed system
+  // Horizontal acceleration system
   private currentSpeedMultiplier: number = 1.0;
   private lastDirection: number = 0; // -1 (left), 0 (none), 1 (right)
   private readonly speedIncreaseRate: number = 0.05; // 5% per second
   private readonly maxSpeedMultiplier: number = 4.0; // Cap at 400% speed
+
+  // Vertical acceleration system (NEW)
+  private verticalSpeedMultiplier: number = 1.0;
+  private lastVerticalDirection: number = 0; // -1 (up), 0 (none), 1 (down)
+  private verticalAccelConfig?: {
+    enabled: boolean;
+    increaseRate: number;
+    maxMultiplier: number;
+  };
+
+  // Fall speed control system
+  private fallSlowdownEffects: number[] = []; // Array of effect timestamps
+  private readonly slowdownPerEffect: number = 0.05; // 5% per effect
+  private readonly maxSlowdown: number = 0.5; // Max 50%
+  private readonly effectDuration: number = 300; // 300ms per effect
+
+  // Feature flags
+  private features: LevelFeatures = {
+    horizontalAcceleration: true,
+    screenWrapping: true,
+    verticalScreenWrapping: false,
+    verticalAcceleration: false,
+    resetOnNonGoalPlatform: false,
+  }
 
   constructor(x: number, y: number) {
     this.position = { x, y };
     this.velocity = { x: 0, y: 0 };
   }
 
-  update(deltaTime: number, input: InputManager, platforms: Platform[], canvasWidth: number): void {
-    // Apply gravity
-    this.velocity.y += this.gravity * deltaTime;
+  /**
+   * Configure player physics and features for current level
+   */
+  configure(physics: PhysicsConfig, features: LevelFeatures): void {
+    this.gravity = physics.gravity;
+    this.jumpForce = physics.jumpForce;
+    this.moveSpeed = physics.moveSpeed;
+    this.maxFallSpeed = physics.maxFallSpeed;
+    this.features = features;
+
+    if (physics.verticalAcceleration) {
+      this.verticalAccelConfig = physics.verticalAcceleration;
+    }
+  }
+
+  update(deltaTime: number, input: InputManager, platforms: Platform[], canvasWidth: number, canvasHeight: number): void {
+    // Vertical acceleration logic (if enabled)
+    if (this.features.verticalAcceleration && this.verticalAccelConfig?.enabled) {
+      const currentVerticalDir = this.velocity.y > 0 ? 1 : this.velocity.y < 0 ? -1 : 0;
+
+      if (currentVerticalDir === 0 || currentVerticalDir !== this.lastVerticalDirection) {
+        // At apex or direction changed - reset multiplier
+        this.verticalSpeedMultiplier = 1.0;
+      } else {
+        // Accelerating in same direction
+        this.verticalSpeedMultiplier = Math.min(
+          this.verticalSpeedMultiplier + this.verticalAccelConfig.increaseRate * deltaTime,
+          this.verticalAccelConfig.maxMultiplier
+        );
+      }
+
+      this.lastVerticalDirection = currentVerticalDir;
+    } else {
+      this.verticalSpeedMultiplier = 1.0;
+    }
+
+    // Fall speed control (if vertical acceleration enabled)
+    let fallSlowdownMultiplier = 1.0;
+    if (this.features.verticalAcceleration && this.verticalAccelConfig?.enabled) {
+      const currentTime = Date.now();
+
+      // Remove expired effects (older than 300ms)
+      this.fallSlowdownEffects = this.fallSlowdownEffects.filter(
+        timestamp => currentTime - timestamp < this.effectDuration
+      );
+
+      // Add new effect if player presses up while falling
+      if (input.isJumpPressed() && this.velocity.y > 0) {
+        const currentSlowdown = this.fallSlowdownEffects.length * this.slowdownPerEffect;
+        if (currentSlowdown < this.maxSlowdown) {
+          this.fallSlowdownEffects.push(currentTime);
+        }
+      }
+
+      // Calculate total slowdown
+      const totalSlowdown = Math.min(
+        this.fallSlowdownEffects.length * this.slowdownPerEffect,
+        this.maxSlowdown
+      );
+      fallSlowdownMultiplier = 1.0 - totalSlowdown;
+    }
+
+    // Apply gravity with vertical multiplier and fall slowdown
+    const effectiveGravity = this.gravity * this.verticalSpeedMultiplier * fallSlowdownMultiplier;
+    this.velocity.y += effectiveGravity * deltaTime;
 
     // Limit fall speed
     if (this.velocity.y > this.maxFallSpeed) {
       this.velocity.y = this.maxFallSpeed;
     }
 
-    // Horizontal movement with progressive speed increase
-    // Determine current input direction
+    // Horizontal movement
     let currentDirection = 0;
     if (input.isLeftPressed() && !input.isRightPressed()) {
       currentDirection = -1;
     } else if (input.isRightPressed() && !input.isLeftPressed()) {
       currentDirection = 1;
     }
-    // Note: If both keys pressed, currentDirection stays 0 (no movement)
 
-    // Speed multiplier logic
-    if (currentDirection === 0) {
-      // Not moving - reset multiplier
-      this.currentSpeedMultiplier = 1.0;
-    } else if (currentDirection !== this.lastDirection) {
-      // Direction changed - reset multiplier
-      this.currentSpeedMultiplier = 1.0;
+    // Horizontal acceleration (if enabled)
+    if (this.features.horizontalAcceleration) {
+      // Speed multiplier logic
+      if (currentDirection === 0) {
+        // Not moving - reset multiplier
+        this.currentSpeedMultiplier = 1.0;
+      } else if (currentDirection !== this.lastDirection) {
+        // Direction changed - reset multiplier
+        this.currentSpeedMultiplier = 1.0;
+      } else {
+        // Moving in same direction - increase multiplier
+        this.currentSpeedMultiplier = Math.min(
+          this.currentSpeedMultiplier + this.speedIncreaseRate * deltaTime,
+          this.maxSpeedMultiplier
+        );
+      }
+
+      this.velocity.x = currentDirection * this.moveSpeed * this.currentSpeedMultiplier;
+      this.lastDirection = currentDirection;
     } else {
-      // Moving in same direction - increase multiplier
-      this.currentSpeedMultiplier = Math.min(
-        this.currentSpeedMultiplier + (this.speedIncreaseRate * deltaTime),
-        this.maxSpeedMultiplier
-      );
+      // Constant speed (no acceleration)
+      this.velocity.x = currentDirection * this.moveSpeed;
+      this.currentSpeedMultiplier = 1.0;
     }
-
-    // Apply movement with current multiplier
-    this.velocity.x = currentDirection * this.moveSpeed * this.currentSpeedMultiplier;
-
-    // Update last direction for next frame
-    this.lastDirection = currentDirection;
 
     // Jump
     if (input.isJumpPressed() && this.isGrounded && this.canJump) {
@@ -91,13 +181,35 @@ export class Player implements GameObject, Collidable {
       }
     }
 
-    // Horizontal screen wrapping: teleport to opposite edge when completely off-screen
-    if (this.position.x + this.width < 0) {
-      // Player completely left of screen - wrap to right
-      this.position.x = canvasWidth;
-    } else if (this.position.x > canvasWidth) {
-      // Player completely right of screen - wrap to left
-      this.position.x = -this.width;
+    // Screen boundary handling
+    if (this.features.screenWrapping) {
+      // Horizontal screen wrapping: teleport to opposite edge
+      if (this.position.x + this.width < 0) {
+        // Player completely left of screen - wrap to right
+        this.position.x = canvasWidth;
+      } else if (this.position.x > canvasWidth) {
+        // Player completely right of screen - wrap to left
+        this.position.x = -this.width;
+      }
+    } else {
+      // Clamp to screen bounds
+      if (this.position.x < 0) {
+        this.position.x = 0;
+      }
+      if (this.position.x + this.width > canvasWidth) {
+        this.position.x = canvasWidth - this.width;
+      }
+    }
+
+    // Vertical screen wrapping
+    if (this.features.verticalScreenWrapping) {
+      if (this.position.y + this.height < 0) {
+        // Player completely above screen - wrap to bottom
+        this.position.y = canvasHeight;
+      } else if (this.position.y > canvasHeight) {
+        // Player completely below screen - wrap to top
+        this.position.y = -this.height;
+      }
     }
   }
 
@@ -136,6 +248,9 @@ export class Player implements GameObject, Collidable {
         this.position.y = platformBounds.y + platformBounds.height;
         this.velocity.y = 0;
       }
+      // Reset vertical acceleration on vertical collision
+      this.verticalSpeedMultiplier = 1.0;
+      this.lastVerticalDirection = 0;
     }
   }
 
@@ -174,12 +289,21 @@ export class Player implements GameObject, Collidable {
     };
   }
 
+  getIsGrounded(): boolean {
+    return this.isGrounded;
+  }
+
   reset(x: number, y: number): void {
     this.position = { x, y };
     this.velocity = { x: 0, y: 0 };
     this.isGrounded = false;
-    // Reset speed multiplier state
+    // Reset horizontal acceleration state
     this.currentSpeedMultiplier = 1.0;
     this.lastDirection = 0;
+    // Reset vertical acceleration state
+    this.verticalSpeedMultiplier = 1.0;
+    this.lastVerticalDirection = 0;
+    // Reset fall slowdown effects
+    this.fallSlowdownEffects = [];
   }
 }

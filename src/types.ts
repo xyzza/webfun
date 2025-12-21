@@ -27,4 +27,8 @@ export interface GameState {
   lives: number;
   isGameOver: boolean;
   isPaused: boolean;
+  // Level tracking
+  currentLevelId: string;
+  levelCompleted: boolean;
+  levelStartTime: number;
 }
