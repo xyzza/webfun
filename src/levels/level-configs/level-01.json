@@ -15,7 +15,7 @@
     { "x": 30, "y": 60, "width": 50, "height": 20, "color": "#e94560" }
   ],
   "physics": {
-    "gravity": 980,
+    "gravity": 1100,
     "jumpForce": -450,
     "moveSpeed": 250,
     "maxFallSpeed": 600
