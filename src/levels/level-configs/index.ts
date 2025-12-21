@@ -27,7 +27,7 @@ export function getLevelConfig(levelId: string): LevelConfig {
  * Get starting level ID
  */
 export function getStartingLevelId(): string {
-  return 'level-02';
+  return 'level-01';
 }
 
 /**

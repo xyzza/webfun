@@ -23,7 +23,9 @@
   "features": {
     "horizontalAcceleration": true,
     "screenWrapping": true,
-    "verticalAcceleration": false
+    "verticalScreenWrapping": false,
+    "verticalAcceleration": false,
+    "resetOnNonGoalPlatform": false
   },
   "winCondition": {
     "type": "reach_platform",

@@ -32,7 +32,9 @@ export interface PhysicsConfig {
 export interface LevelFeatures {
   horizontalAcceleration: boolean;
   screenWrapping: boolean;
+  verticalScreenWrapping: boolean;
   verticalAcceleration: boolean;
+  resetOnNonGoalPlatform: boolean;
 }
 
 /**

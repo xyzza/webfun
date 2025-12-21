@@ -34,11 +34,19 @@ export class Player implements GameObject, Collidable {
     maxMultiplier: number;
   };
 
+  // Fall speed control system
+  private fallSlowdownEffects: number[] = []; // Array of effect timestamps
+  private readonly slowdownPerEffect: number = 0.05; // 5% per effect
+  private readonly maxSlowdown: number = 0.5; // Max 50%
+  private readonly effectDuration: number = 300; // 300ms per effect
+
   // Feature flags
   private features: LevelFeatures = {
     horizontalAcceleration: true,
     screenWrapping: true,
+    verticalScreenWrapping: false,
     verticalAcceleration: false,
+    resetOnNonGoalPlatform: false,
   }
 
   constructor(x: number, y: number) {
@@ -61,7 +69,7 @@ export class Player implements GameObject, Collidable {
     }
   }
 
-  update(deltaTime: number, input: InputManager, platforms: Platform[], canvasWidth: number): void {
+  update(deltaTime: number, input: InputManager, platforms: Platform[], canvasWidth: number, canvasHeight: number): void {
     // Vertical acceleration logic (if enabled)
     if (this.features.verticalAcceleration && this.verticalAccelConfig?.enabled) {
       const currentVerticalDir = this.velocity.y > 0 ? 1 : this.velocity.y < 0 ? -1 : 0;
@@ -82,8 +90,34 @@ export class Player implements GameObject, Collidable {
       this.verticalSpeedMultiplier = 1.0;
     }
 
-    // Apply gravity with vertical multiplier
-    const effectiveGravity = this.gravity * this.verticalSpeedMultiplier;
+    // Fall speed control (if vertical acceleration enabled)
+    let fallSlowdownMultiplier = 1.0;
+    if (this.features.verticalAcceleration && this.verticalAccelConfig?.enabled) {
+      const currentTime = Date.now();
+
+      // Remove expired effects (older than 300ms)
+      this.fallSlowdownEffects = this.fallSlowdownEffects.filter(
+        timestamp => currentTime - timestamp < this.effectDuration
+      );
+
+      // Add new effect if player presses up while falling
+      if (input.isJumpPressed() && this.velocity.y > 0) {
+        const currentSlowdown = this.fallSlowdownEffects.length * this.slowdownPerEffect;
+        if (currentSlowdown < this.maxSlowdown) {
+          this.fallSlowdownEffects.push(currentTime);
+        }
+      }
+
+      // Calculate total slowdown
+      const totalSlowdown = Math.min(
+        this.fallSlowdownEffects.length * this.slowdownPerEffect,
+        this.maxSlowdown
+      );
+      fallSlowdownMultiplier = 1.0 - totalSlowdown;
+    }
+
+    // Apply gravity with vertical multiplier and fall slowdown
+    const effectiveGravity = this.gravity * this.verticalSpeedMultiplier * fallSlowdownMultiplier;
     this.velocity.y += effectiveGravity * deltaTime;
 
     // Limit fall speed
@@ -166,6 +200,17 @@ export class Player implements GameObject, Collidable {
         this.position.x = canvasWidth - this.width;
       }
     }
+
+    // Vertical screen wrapping
+    if (this.features.verticalScreenWrapping) {
+      if (this.position.y + this.height < 0) {
+        // Player completely above screen - wrap to bottom
+        this.position.y = canvasHeight;
+      } else if (this.position.y > canvasHeight) {
+        // Player completely below screen - wrap to top
+        this.position.y = -this.height;
+      }
+    }
   }
 
   private resolveCollision(platform: Platform): void {
@@ -244,6 +289,10 @@ export class Player implements GameObject, Collidable {
     };
   }
 
+  getIsGrounded(): boolean {
+    return this.isGrounded;
+  }
+
   reset(x: number, y: number): void {
     this.position = { x, y };
     this.velocity = { x: 0, y: 0 };
@@ -254,5 +303,7 @@ export class Player implements GameObject, Collidable {
     // Reset vertical acceleration state
     this.verticalSpeedMultiplier = 1.0;
     this.lastVerticalDirection = 0;
+    // Reset fall slowdown effects
+    this.fallSlowdownEffects = [];
   }
 }

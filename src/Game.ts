@@ -14,6 +14,7 @@ export class Game {
   private levelManager: LevelManager;
   private lastTime: number = 0;
   private animationId: number = 0;
+  private wasGrounded: boolean = false;
 
   private state: GameState = {
     score: 0,
@@ -74,15 +75,38 @@ export class Game {
     }
 
     // Update player
-    this.player.update(deltaTime, this.inputManager, this.platforms, this.canvas.width);
+    this.player.update(deltaTime, this.inputManager, this.platforms, this.canvas.width, this.canvas.height);
 
-    // Check if player fell off the screen
-    if (this.player.position.y > this.canvas.height) {
+    // Check if player fell off the screen (only if vertical wrapping disabled)
+    const config = this.levelManager.getCurrentConfig();
+    const hasVerticalWrapping = config?.features.verticalScreenWrapping ?? false;
+
+    if (!hasVerticalWrapping && this.player.position.y > this.canvas.height) {
       this.loseLife();
     }
 
     // Update score (simple time-based scoring)
     this.state.score += Math.floor(deltaTime * 10);
+
+    // Check for landing on non-goal platform
+    const isGrounded = this.player.getIsGrounded();
+    if (config?.features.resetOnNonGoalPlatform && !this.wasGrounded && isGrounded) {
+      // Player just landed - check which platform
+      const landedPlatformIndex = this.findLandedPlatform();
+      const goalPlatformIndex = config.winCondition.type === 'reach_platform'
+        ? config.winCondition.platformIndex ?? -1
+        : -1;
+
+      if (landedPlatformIndex !== -1 && landedPlatformIndex !== goalPlatformIndex) {
+        // Landed on wrong platform - reset to first platform
+        const firstPlatform = this.platforms[0];
+        if (firstPlatform) {
+          const bounds = firstPlatform.getBounds();
+          this.player.reset(bounds.x + bounds.width / 2 - this.player.width / 2, bounds.y - this.player.height - 5);
+        }
+      }
+    }
+    this.wasGrounded = isGrounded;
 
     // Check win condition
     if (!this.state.levelCompleted &&
@@ -196,6 +220,25 @@ export class Game {
         this.canvas.height / 2 + 50
       );
     }
+  }
+
+  private findLandedPlatform(): number {
+    const playerBounds = this.player.getBounds();
+    const playerBottom = playerBounds.y + playerBounds.height;
+    const playerCenterX = playerBounds.x + playerBounds.width / 2;
+
+    for (let i = 0; i < this.platforms.length; i++) {
+      const platformBounds = this.platforms[i].getBounds();
+
+      // Check if player is standing on this platform
+      if (playerCenterX >= platformBounds.x &&
+          playerCenterX <= platformBounds.x + platformBounds.width &&
+          Math.abs(playerBottom - platformBounds.y) < 5) {
+        return i;
+      }
+    }
+
+    return -1;
   }
 
   private loseLife(): void {
