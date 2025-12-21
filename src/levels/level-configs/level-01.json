@@ -1,0 +1,33 @@
+{
+  "id": "level-01",
+  "name": "Speed Master",
+  "canvasWidth": 800,
+  "canvasHeight": 600,
+  "spawnPosition": { "x": 50, "y": 100 },
+  "initialLives": 3,
+  "platforms": [
+    { "x": 0, "y": 560, "width": 800, "height": 40, "color": "#0f3460" },
+    { "x": 150, "y": 450, "width": 150, "height": 20, "color": "#0f3460" },
+    { "x": 400, "y": 350, "width": 150, "height": 20, "color": "#0f3460" },
+    { "x": 180, "y": 250, "width": 170, "height": 20, "color": "#0f3460" },
+    { "x": 700, "y": 150, "width": 120, "height": 20, "color": "#0f3460" },
+    { "x": 650, "y": 450, "width": 100, "height": 20, "color": "#0f3460" },
+    { "x": 30, "y": 60, "width": 50, "height": 20, "color": "#e94560" }
+  ],
+  "physics": {
+    "gravity": 980,
+    "jumpForce": -450,
+    "moveSpeed": 250,
+    "maxFallSpeed": 600
+  },
+  "features": {
+    "horizontalAcceleration": true,
+    "screenWrapping": true,
+    "verticalAcceleration": false
+  },
+  "winCondition": {
+    "type": "reach_platform",
+    "platformIndex": 6
+  },
+  "nextLevelId": "level-02"
+}

@@ -1,0 +1,36 @@
+{
+  "id": "level-02",
+  "name": "Gravity Well",
+  "canvasWidth": 800,
+  "canvasHeight": 600,
+  "spawnPosition": { "x": 100, "y": 50 },
+  "initialLives": 3,
+  "platforms": [
+    { "x": 0, "y": 560, "width": 800, "height": 40, "color": "#0f3460" },
+    { "x": 50, "y": 150, "width": 100, "height": 20, "color": "#0f3460" },
+    { "x": 250, "y": 300, "width": 100, "height": 20, "color": "#0f3460" },
+    { "x": 450, "y": 200, "width": 100, "height": 20, "color": "#0f3460" },
+    { "x": 650, "y": 400, "width": 100, "height": 20, "color": "#e94560" }
+  ],
+  "physics": {
+    "gravity": 980,
+    "jumpForce": -450,
+    "moveSpeed": 250,
+    "maxFallSpeed": 1200,
+    "verticalAcceleration": {
+      "enabled": true,
+      "increaseRate": 0.08,
+      "maxMultiplier": 3.0
+    }
+  },
+  "features": {
+    "horizontalAcceleration": false,
+    "screenWrapping": false,
+    "verticalAcceleration": true
+  },
+  "winCondition": {
+    "type": "reach_platform",
+    "platformIndex": 4
+  },
+  "nextLevelId": null
+}
