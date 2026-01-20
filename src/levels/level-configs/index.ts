@@ -3,6 +3,7 @@ import type { LevelConfig, LevelRegistry } from '../LevelConfig';
 // Import JSON files
 import level01 from './level-01.json';
 import level02 from './level-02.json';
+import level03 from './level-03.json';
 
 /**
  * Central registry of all levels
@@ -10,6 +11,7 @@ import level02 from './level-02.json';
 export const LEVEL_REGISTRY: LevelRegistry = {
   'level-01': level01 as LevelConfig,
   'level-02': level02 as LevelConfig,
+  'level-03': level03 as LevelConfig,
 };
 
 /**

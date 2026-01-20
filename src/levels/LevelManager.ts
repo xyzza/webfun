@@ -11,6 +11,7 @@ import { VerticalAccelerationSystem } from '../physics/VerticalAccelerationSyste
 import { FallSlowdownSystem } from '../physics/FallSlowdownSystem';
 import { FallAccelerationSystem } from '../physics/FallAccelerationSystem';
 import { SpeedJumpBoostSystem } from '../physics/SpeedJumpBoostSystem';
+import { BouncingJumpSystem } from '../physics/BouncingJumpSystem';
 
 export class LevelManager {
   private currentConfig: LevelConfig | null = null;
@@ -29,7 +30,16 @@ export class LevelManager {
    */
   createPlatforms(config: LevelConfig): Platform[] {
     return config.platforms.map(p =>
-      new Platform(p.x, p.y, p.width, p.height, p.color ?? '#0f3460')
+      new Platform(
+        p.x,
+        p.y,
+        p.width,
+        p.height,
+        p.color ?? '#0f3460',
+        p.isDynamic ?? false,
+        p.visibleColor,
+        p.invisibleColor
+      )
     );
   }
 
@@ -192,9 +202,20 @@ export class LevelManager {
         systems.push(new JumpSystem({ jumpForce: physics.jumpForce }));
       }
     } else {
-      // Level 2 or others: Basic movement + basic jump
+      // Level 2 or others: Basic movement + jump system
       systems.push(new MovementSystem({ moveSpeed: physics.moveSpeed }));
-      systems.push(new JumpSystem({ jumpForce: physics.jumpForce }));
+
+      // Check for bouncing jump system (Level 3)
+      if (physics.bouncingJump?.enabled) {
+        systems.push(new BouncingJumpSystem({
+          jumpForce: physics.jumpForce,
+          boostPerBounce: physics.bouncingJump.boostPerBounce,
+          maxBounces: physics.bouncingJump.maxBounces,
+          timingWindow: physics.bouncingJump.timingWindow
+        }));
+      } else {
+        systems.push(new JumpSystem({ jumpForce: physics.jumpForce }));
+      }
     }
 
     // Screen wrapping (if enabled)

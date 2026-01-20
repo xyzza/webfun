@@ -1,0 +1,87 @@
+{
+  "id": "level-03",
+  "name": "Look!",
+  "canvasWidth": 800,
+  "canvasHeight": 600,
+  "spawnPosition": { "x": 10, "y": 20 },
+  "initialLives": 3,
+  "platforms": [
+    { "x": 0, "y": 300, "width": 800, "height": 15, "color": "#0f3460" },
+    {
+      "x": 780,
+      "y": 270,
+      "width": 15,
+      "height": 15,
+      "isDynamic": true,
+      "visibleColor": "#0f3460",
+      "invisibleColor": "#16213e"
+    },
+    {
+      "x": 350,
+      "y": 230,
+      "width": 15,
+      "height": 15,
+      "isDynamic": true,
+      "visibleColor": "#0f3460",
+      "invisibleColor": "#16213a"
+    },
+    {
+      "x": 300,
+      "y": 115,
+      "width": 15,
+      "height": 15,
+      "isDynamic": true,
+      "visibleColor": "#0f3460",
+      "invisibleColor": "#16213a"
+    },
+    {
+      "x": 200,
+      "y": 40,
+      "width": 15,
+      "height": 15,
+      "isDynamic": true,
+      "visibleColor": "#0f3460",
+      "invisibleColor": "#16213a"
+    },
+    {
+      "x": 120,
+      "y": 540,
+      "width": 15,
+      "height": 15,
+      "isDynamic": true,
+      "visibleColor": "#0f3460",
+      "invisibleColor": "#16213a"
+    },
+    {
+      "x": 350,
+      "y": 500,
+      "width": 80,
+      "height": 15,
+      "color": "#e94560"
+    }
+  ],
+  "physics": {
+    "gravity": 980,
+    "jumpForce": -450,
+    "moveSpeed": 250,
+    "maxFallSpeed": 600,
+    "bouncingJump": {
+      "enabled": true,
+      "boostPerBounce": 0.04,
+      "maxBounces": 5,
+      "timingWindow": 0.4
+    }
+  },
+  "features": {
+    "horizontalAcceleration": false,
+    "screenWrapping": true,
+    "verticalScreenWrapping": true,
+    "verticalAcceleration": false,
+    "resetOnNonGoalPlatform": false
+  },
+  "winCondition": {
+    "type": "reach_platform",
+    "platformIndex": 6
+  },
+  "nextLevelId": null
+}

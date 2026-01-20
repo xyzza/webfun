@@ -81,6 +81,13 @@ export class Game {
     // Update player
     this.player.update(deltaTime, this.inputManager, this.platforms, this.canvas.width, this.canvas.height);
 
+    // Update platform visibility based on player position
+    const landedPlatformIndex = this.findLandedPlatform();
+    for (let i = 0; i < this.platforms.length; i++) {
+      const isPlayerStanding = i === landedPlatformIndex;
+      this.platforms[i].update(deltaTime, isPlayerStanding);
+    }
+
     // Check if player fell off the screen (only if vertical wrapping disabled)
     const config = this.levelManager.getCurrentConfig();
     const hasVerticalWrapping = config?.features.verticalScreenWrapping ?? false;

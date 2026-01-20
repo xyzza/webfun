@@ -9,6 +9,9 @@ export interface PlatformConfig {
   width: number;
   height: number;
   color?: string;
+  isDynamic?: boolean;        // Marks platform as having dynamic visibility
+  visibleColor?: string;      // Color when player stands on platform
+  invisibleColor?: string;    // Color when invisible (background color)
 }
 
 /**
@@ -68,6 +71,16 @@ export interface SpeedJumpBoostConfig {
 }
 
 /**
+ * Bouncing jump configuration (Level 3)
+ */
+export interface BouncingJumpConfig {
+  enabled: boolean;
+  boostPerBounce: number;  // Boost percentage per bounce (e.g., 0.04 for 4%)
+  maxBounces: number;       // Maximum consecutive bounces
+  timingWindow: number;     // Time window after landing to jump (in seconds)
+}
+
+/**
  * Physics configuration per level
  * Combines base physics with optional level-specific systems
  */
@@ -78,6 +91,7 @@ export interface PhysicsConfig extends BasePhysicsConfig {
   fallSlowdown?: FallSlowdownConfig;
   fallAcceleration?: FallAccelerationConfig;
   speedJumpBoost?: SpeedJumpBoostConfig;
+  bouncingJump?: BouncingJumpConfig;
 
   // Legacy support (deprecated - use new configs above)
   verticalAcceleration?: VerticalAccelConfig;
