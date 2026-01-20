@@ -15,10 +15,19 @@
     { "x": 30, "y": 60, "width": 50, "height": 20, "color": "#e94560" }
   ],
   "physics": {
-    "gravity": 1100,
+    "gravity": 1030,
     "jumpForce": -450,
     "moveSpeed": 250,
-    "maxFallSpeed": 600
+    "maxFallSpeed": 600,
+    "horizontalAccel": {
+      "enabled": true,
+      "increaseRate": 0.1,
+      "maxMultiplier": 4.0
+    },
+    "speedJumpBoost": {
+      "enabled": true,
+      "boostCoefficient": 0.6
+    }
   },
   "features": {
     "horizontalAcceleration": true,

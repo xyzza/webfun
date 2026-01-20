@@ -31,6 +31,10 @@ export class InputManager {
     return this.isKeyPressed('ArrowUp') || this.isKeyPressed('w') || this.isKeyPressed(' ');
   }
 
+  isDownPressed(): boolean {
+    return this.isKeyPressed('ArrowDown') || this.isKeyPressed('s');
+  }
+
   isPausePressed(): boolean {
     return this.isKeyPressed('Escape') || this.isKeyPressed('p');
   }

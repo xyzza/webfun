@@ -2,6 +2,15 @@ import type { LevelConfig, PhysicsConfig, LevelFeatures } from './LevelConfig';
 import type { GameState, Vector2D } from '../types';
 import { Platform } from '../Platform';
 import { getLevelConfig } from './level-configs/index';
+import type { PhysicsSystem } from '../physics/PhysicsSystem';
+import { JumpSystem } from '../physics/JumpSystem';
+import { MovementSystem } from '../physics/MovementSystem';
+import { ScreenWrappingSystem } from '../physics/ScreenWrappingSystem';
+import { HorizontalAccelerationSystem } from '../physics/HorizontalAccelerationSystem';
+import { VerticalAccelerationSystem } from '../physics/VerticalAccelerationSystem';
+import { FallSlowdownSystem } from '../physics/FallSlowdownSystem';
+import { FallAccelerationSystem } from '../physics/FallAccelerationSystem';
+import { SpeedJumpBoostSystem } from '../physics/SpeedJumpBoostSystem';
 
 export class LevelManager {
   private currentConfig: LevelConfig | null = null;
@@ -80,5 +89,124 @@ export class LevelManager {
    */
   getCurrentConfig(): LevelConfig | null {
     return this.currentConfig;
+  }
+
+  /**
+   * Create physics systems based on level configuration
+   * Returns array of physics systems to be run by the player
+   */
+  createPhysicsSystems(config: LevelConfig): PhysicsSystem[] {
+    const systems: PhysicsSystem[] = [];
+    const physics = config.physics;
+
+    // Gravity system with fall slowdown/acceleration support
+    let fallSlowdownSystem: FallSlowdownSystem | null = null;
+    let fallAccelerationSystem: FallAccelerationSystem | null = null;
+    let verticalAccelSystem: VerticalAccelerationSystem | null = null;
+
+    // Vertical acceleration (Level 2)
+    if (physics.verticalAccel?.enabled || physics.verticalAcceleration?.enabled) {
+      const vertConfig = physics.verticalAccel || physics.verticalAcceleration!;
+      verticalAccelSystem = new VerticalAccelerationSystem({
+        increaseRate: vertConfig.increaseRate,
+        maxMultiplier: vertConfig.maxMultiplier
+      });
+      systems.push(verticalAccelSystem);
+    }
+
+    // Fall slowdown (Level 2)
+    if (physics.fallSlowdown?.enabled) {
+      fallSlowdownSystem = new FallSlowdownSystem({
+        slowdownPerEffect: physics.fallSlowdown.slowdownPerEffect,
+        maxSlowdown: physics.fallSlowdown.maxSlowdown,
+        effectDuration: physics.fallSlowdown.effectDuration
+      });
+      systems.push(fallSlowdownSystem);
+    }
+
+    // Fall acceleration (Level 2)
+    if (physics.fallAcceleration?.enabled) {
+      fallAccelerationSystem = new FallAccelerationSystem({
+        boostPerEffect: physics.fallAcceleration.boostPerEffect,
+        maxBoost: physics.fallAcceleration.maxBoost,
+        effectDuration: physics.fallAcceleration.effectDuration
+      });
+      systems.push(fallAccelerationSystem);
+    }
+
+    // Wrap gravity system to apply vertical acceleration, fall slowdown, and fall acceleration
+    const wrappedGravitySystem: PhysicsSystem = {
+      update: (state, context) => {
+        // Get multipliers from other systems
+        const verticalMultiplier = verticalAccelSystem?.getMultiplier() ?? 1.0;
+        const slowdownMultiplier = fallSlowdownSystem?.getSlowdownMultiplier() ?? 1.0;
+        const accelerationMultiplier = fallAccelerationSystem?.getBoostMultiplier() ?? 1.0;
+
+        // Apply gravity with all multipliers
+        // Note: slowdown and acceleration work in opposite directions
+        const effectiveGravity = physics.gravity * verticalMultiplier * slowdownMultiplier * accelerationMultiplier;
+        state.velocity.y += effectiveGravity * context.deltaTime;
+
+        // Cap fall speed
+        if (state.velocity.y > physics.maxFallSpeed) {
+          state.velocity.y = physics.maxFallSpeed;
+        }
+
+        return true;
+      }
+    };
+    systems.push(wrappedGravitySystem);
+
+    // Movement and jumping systems
+    if (config.features.horizontalAcceleration &&
+        (physics.horizontalAccel?.enabled !== false)) {
+      // Level 1: Horizontal acceleration + speed-based jump boost
+      const accelConfig = physics.horizontalAccel || {
+        enabled: true,
+        increaseRate: 0.1,
+        maxMultiplier: 4.0
+      };
+
+      const accelSystem = new HorizontalAccelerationSystem({
+        moveSpeed: physics.moveSpeed,
+        increaseRate: accelConfig.increaseRate,
+        maxMultiplier: accelConfig.maxMultiplier
+      });
+      systems.push(accelSystem);
+
+      // Speed-based jump boost (depends on horizontal acceleration)
+      const jumpBoostConfig = physics.speedJumpBoost || physics.speedBasedJumpBoost || {
+        enabled: true,
+        boostCoefficient: 0.6
+      };
+
+      if (jumpBoostConfig.enabled) {
+        systems.push(new SpeedJumpBoostSystem(
+          {
+            jumpForce: physics.jumpForce,
+            boostCoefficient: jumpBoostConfig.boostCoefficient
+          },
+          accelSystem
+        ));
+      } else {
+        systems.push(new JumpSystem({ jumpForce: physics.jumpForce }));
+      }
+    } else {
+      // Level 2 or others: Basic movement + basic jump
+      systems.push(new MovementSystem({ moveSpeed: physics.moveSpeed }));
+      systems.push(new JumpSystem({ jumpForce: physics.jumpForce }));
+    }
+
+    // Screen wrapping (if enabled)
+    if (config.features.screenWrapping || config.features.verticalScreenWrapping) {
+      systems.push(new ScreenWrappingSystem({
+        horizontal: config.features.screenWrapping,
+        vertical: config.features.verticalScreenWrapping,
+        playerWidth: 30,
+        playerHeight: 40
+      }));
+    }
+
+    return systems;
   }
 }

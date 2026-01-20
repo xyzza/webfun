@@ -15,6 +15,7 @@ export class Game {
   private lastTime: number = 0;
   private animationId: number = 0;
   private wasGrounded: boolean = false;
+  private initialLevelId: string = '';
 
   private state: GameState = {
     score: 0,
@@ -26,7 +27,7 @@ export class Game {
     levelStartTime: 0,
   };
 
-  constructor(canvasId: string) {
+  constructor(canvasId: string, startingLevelId?: string) {
     const canvas = document.getElementById(canvasId) as HTMLCanvasElement;
     if (!canvas) {
       throw new Error(`Canvas element with id "${canvasId}" not found`);
@@ -43,8 +44,9 @@ export class Game {
     this.player = new Player(100, 100);
     this.levelManager = new LevelManager();
 
-    // Load starting level
-    this.loadLevel(getStartingLevelId());
+    // Store and load starting level (use provided or default)
+    this.initialLevelId = startingLevelId || getStartingLevelId();
+    this.loadLevel(this.initialLevelId);
   }
 
   private loadLevel(levelId: string): void {
@@ -58,9 +60,11 @@ export class Game {
     // Create platforms
     this.platforms = this.levelManager.createPlatforms(config);
 
-    // Configure player
-    const playerConfig = this.levelManager.getPlayerConfig();
-    this.player.configure(playerConfig.physics, playerConfig.features);
+    // Create physics systems for this level
+    const physicsSystems = this.levelManager.createPhysicsSystems(config);
+
+    // Configure player with systems
+    this.player.configure(physicsSystems, config.features);
 
     // Reset player position
     this.player.reset(config.spawnPosition.x, config.spawnPosition.y);
@@ -97,13 +101,12 @@ export class Game {
         ? config.winCondition.platformIndex ?? -1
         : -1;
 
-      if (landedPlatformIndex !== -1 && landedPlatformIndex !== goalPlatformIndex) {
-        // Landed on wrong platform - reset to first platform
-        const firstPlatform = this.platforms[0];
-        if (firstPlatform) {
-          const bounds = firstPlatform.getBounds();
-          this.player.reset(bounds.x + bounds.width / 2 - this.player.width / 2, bounds.y - this.player.height - 5);
-        }
+      // Exclude first platform (index 0) - player spawns there
+      if (landedPlatformIndex !== -1 &&
+          landedPlatformIndex !== 0 &&
+          landedPlatformIndex !== goalPlatformIndex) {
+        // Landed on wrong platform - reset to spawn position
+        this.player.reset(config.spawnPosition.x, config.spawnPosition.y);
       }
     }
     this.wasGrounded = isGrounded;
@@ -337,8 +340,8 @@ export class Game {
     this.state.isGameOver = false;
     this.state.isPaused = false;
 
-    // Reload starting level
-    this.loadLevel(getStartingLevelId());
+    // Reload initial level (respects debug mode URL)
+    this.loadLevel(this.initialLevelId);
   }
 
   public start(): void {
