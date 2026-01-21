@@ -16,6 +16,7 @@ export class Game {
   private animationId: number = 0;
   private wasGrounded: boolean = false;
   private initialLevelId: string = '';
+  private handleCanvasTapBound: (e: TouchEvent) => void;
 
   private state: GameState = {
     score: 0,
@@ -44,9 +45,29 @@ export class Game {
     this.player = new Player(100, 100);
     this.levelManager = new LevelManager();
 
+    // Setup touch handler for screen taps (next level / restart)
+    this.handleCanvasTapBound = this.handleCanvasTap.bind(this);
+    this.canvas.addEventListener('touchend', this.handleCanvasTapBound);
+
     // Store and load starting level (use provided or default)
     this.initialLevelId = startingLevelId || getStartingLevelId();
     this.loadLevel(this.initialLevelId);
+  }
+
+  private handleCanvasTap(e: TouchEvent): void {
+    // Handle tap to go to next level
+    if (this.state.levelCompleted && !this.state.isGameOver) {
+      e.preventDefault();
+      this.nextLevel();
+      return;
+    }
+
+    // Handle tap to restart game
+    if (this.state.isGameOver) {
+      e.preventDefault();
+      this.restart();
+      return;
+    }
   }
 
   private loadLevel(levelId: string): void {
@@ -166,18 +187,10 @@ export class Game {
 
     this.ctx.fillStyle = '#ffffff';
     this.ctx.font = '24px Arial';
-    this.ctx.fillText(
-      `Final Score: ${this.state.score}`,
-      this.canvas.width / 2,
-      this.canvas.height / 2 + 20
-    );
+    this.ctx.fillText(`Final Score: ${this.state.score}`, this.canvas.width / 2, this.canvas.height / 2 + 20);
 
     this.ctx.font = '18px Arial';
-    this.ctx.fillText(
-      'Press R to Restart',
-      this.canvas.width / 2,
-      this.canvas.height / 2 + 60
-    );
+    this.ctx.fillText('Press R or Tap to Restart', this.canvas.width / 2, this.canvas.height / 2 + 60);
   }
 
   private renderPaused(): void {
@@ -191,11 +204,7 @@ export class Game {
 
     this.ctx.fillStyle = '#ffffff';
     this.ctx.font = '18px Arial';
-    this.ctx.fillText(
-      'Press ESC or P to Resume',
-      this.canvas.width / 2,
-      this.canvas.height / 2 + 40
-    );
+    this.ctx.fillText('Press ESC or P to Resume', this.canvas.width / 2, this.canvas.height / 2 + 40);
   }
 
   private renderLevelComplete(): void {
@@ -209,26 +218,14 @@ export class Game {
 
     this.ctx.fillStyle = '#ffffff';
     this.ctx.font = '24px Arial';
-    this.ctx.fillText(
-      `Score: ${this.state.score}`,
-      this.canvas.width / 2,
-      this.canvas.height / 2 + 10
-    );
+    this.ctx.fillText(`Score: ${this.state.score}`, this.canvas.width / 2, this.canvas.height / 2 + 10);
 
     const nextLevelId = this.levelManager.getNextLevelId();
     this.ctx.font = '18px Arial';
     if (nextLevelId) {
-      this.ctx.fillText(
-        'Press ENTER or N for Next Level',
-        this.canvas.width / 2,
-        this.canvas.height / 2 + 50
-      );
+      this.ctx.fillText('Tap or Press ENTER for Next Level', this.canvas.width / 2, this.canvas.height / 2 + 50);
     } else {
-      this.ctx.fillText(
-        'All Levels Complete!',
-        this.canvas.width / 2,
-        this.canvas.height / 2 + 50
-      );
+      this.ctx.fillText('All Levels Complete!', this.canvas.width / 2, this.canvas.height / 2 + 50);
     }
   }
 
@@ -361,5 +358,7 @@ export class Game {
     if (this.animationId) {
       cancelAnimationFrame(this.animationId);
     }
+    this.canvas.removeEventListener('touchend', this.handleCanvasTapBound);
+    this.inputManager.destroy();
   }
 }
