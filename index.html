@@ -20,11 +20,18 @@
             font-family: 'Arial', sans-serif;
         }
 
+        #game-container {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
         #gameCanvas {
             border: 2px solid #0f3460;
             background: #16213e;
             display: block;
             box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            touch-action: none;
         }
 
         #ui {
@@ -35,6 +42,47 @@
             font-size: 20px;
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
         }
+
+        .touch-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .touch-btn {
+            width: 80px;
+            height: 80px;
+            border: 2px solid #0f3460;
+            background: rgba(15, 52, 96, 0.6);
+            color: #ffffff;
+            font-size: 32px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            user-select: none;
+            touch-action: manipulation;
+            transition: background 0.1s, border-color 0.1s;
+        }
+
+        .touch-btn:active,
+        .touch-btn.pressed {
+            background: rgba(233, 69, 96, 0.7);
+            border-color: #e94560;
+        }
+
+        @media (hover: hover) {
+            .touch-controls {
+                display: none;
+            }
+        }
+
+        @media (hover: none) {
+            .touch-controls {
+                display: flex;
+            }
+        }
     </style>
 </head>
 <body>
@@ -43,7 +91,17 @@
         <div id="lives">Lives: 3</div>
         <div id="level">Level: 1</div>
     </div>
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <div id="game-container">
+        <div class="touch-controls" id="left-controls">
+            <button class="touch-btn" data-action="jump">↑</button>
+            <button class="touch-btn" data-action="left">←</button>
+        </div>
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div class="touch-controls" id="right-controls">
+            <button class="touch-btn" data-action="jump">↑</button>
+            <button class="touch-btn" data-action="right">→</button>
+        </div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
 </body>
 </html>
