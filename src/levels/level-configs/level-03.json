@@ -1,6 +1,6 @@
 {
   "id": "level-03",
-  "name": "Look!",
+  "name": "Look! breadcrumbs!",
   "canvasWidth": 800,
   "canvasHeight": 600,
   "spawnPosition": { "x": 10, "y": 20 },
